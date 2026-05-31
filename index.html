@@ -538,35 +538,66 @@ function enterChat() {
 
 async function register() {
   showError("");
-  const name  = document.getElementById("user").value.trim();
-  const email = name + "@chat.local";
-  const pass  = document.getElementById("pass").value;
+  const name = document.getElementById("user").value.trim();
+  const pass = document.getElementById("pass").value;
   if (!name || !pass) { showToast("error", "Eksik bilgi", "Kullanıcı adı ve şifre gerekli."); return; }
+  if (pass.length < 6) { showToast("error", "Şifre çok kısa", "Şifre en az 6 karakter olmalı."); return; }
+  const email = name + "@memolichat.app";
   try {
     await createUserWithEmailAndPassword(auth, email, pass);
+    // Save username mapping
+    await set(ref(db, "usernames/" + name), { email, createdAt: Date.now() });
     showToast("success", "Kayıt başarılı! 🎉", `Hoş geldin, ${name}! Artık giriş yapabilirsin.`);
   } catch(e) {
-    const msg = e.code === "auth/email-already-in-use" ? "Bu kullanıcı adı zaten alınmış." : e.message;
-    showToast("error", "Kayıt başarısız", msg);
+    const msgs = {
+      "auth/email-already-in-use": "Bu kullanıcı adı zaten alınmış.",
+      "auth/weak-password": "Şifre en az 6 karakter olmalı.",
+      "auth/invalid-email": "Geçersiz kullanıcı adı.",
+    };
+    showToast("error", "Kayıt başarısız", msgs[e.code] || e.message);
   }
 }
 
 async function login() {
   showError("");
-  const name  = document.getElementById("user").value.trim();
-  const email = name + "@chat.local";
-  const pass  = document.getElementById("pass").value;
+  const name = document.getElementById("user").value.trim();
+  const pass = document.getElementById("pass").value;
   if (!name || !pass) { showToast("error", "Eksik bilgi", "Kullanıcı adı ve şifre gerekli."); return; }
+  const email = name + "@memolichat.app";
   try {
-    await signInWithEmailAndPassword(auth, email, pass);
+    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    if (!cred || !cred.user) throw new Error("no-user");
     setUserUI(name);
-    await set(ref(db, "users/" + name), { online: true });
+    await set(ref(db, "users/" + name), { online: true, lastSeen: Date.now() });
     showToast("info", `Hoş geldin, ${name}! 👋`, "Başarıyla giriş yapıldı.");
     enterChat();
   } catch(e) {
-    showToast("error", "Giriş başarısız", "Kullanıcı adı veya şifre hatalı.");
+    const msgs = {
+      "auth/user-not-found":      "Bu kullanıcı adı kayıtlı değil.",
+      "auth/wrong-password":      "Şifre hatalı.",
+      "auth/invalid-credential":  "Kullanıcı adı veya şifre hatalı.",
+      "auth/invalid-email":       "Geçersiz kullanıcı adı.",
+      "auth/too-many-requests":   "Çok fazla deneme. Lütfen bekleyin.",
+    };
+    showToast("error", "Giriş başarısız", msgs[e.code] || "Kullanıcı adı veya şifre hatalı.");
+    console.error("Login error:", e.code, e.message);
   }
 }
+
+// Auto-create admin account on startup
+async function ensureAdmin() {
+  const adminEmail = "admin3346@memolichat.app";
+  const adminPass  = "admin120412";
+  try {
+    await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
+    await set(ref(db, "usernames/admin3346"), { email: adminEmail, role: "admin", createdAt: Date.now() });
+    await signOut(auth);
+  } catch(e) {
+    // Already exists — that's fine, sign out just in case
+    if (auth.currentUser) await signOut(auth);
+  }
+}
+ensureAdmin();
 
 async function logout() {
   if (currentUser) await set(ref(db, "users/" + currentUser), { online: false });
