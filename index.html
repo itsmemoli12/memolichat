@@ -1,10 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-<title>Merhaba Dünya</title>
+<meta charset="UTF-8">
+<title>Chat App</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: #0f172a;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.chat-box {
+    width: 400px;
+    height: 500px;
+    background: #1e293b;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.messages {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.msg {
+    background: #334155;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 8px;
+}
+
+.input-area {
+    display: flex;
+}
+
+input {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    outline: none;
+}
+
+button {
+    padding: 10px;
+    border: none;
+    background: #3b82f6;
+    color: white;
+    cursor: pointer;
+}
+</style>
 </head>
+
 <body>
-<h1>Merhaba Kanka!</h1>
-<p>Bu benim ilk GitHub Pages sitem.</p>
+
+<div class="chat-box">
+    <div class="messages" id="messages"></div>
+
+    <div class="input-area">
+        <input id="input" placeholder="Mesaj yaz...">
+        <button onclick="send()">Gönder</button>
+    </div>
+</div>
+
+<script>
+let messagesDiv = document.getElementById("messages");
+
+function load() {
+    let msgs = JSON.parse(localStorage.getItem("msgs") || "[]");
+    messagesDiv.innerHTML = "";
+    msgs.forEach(m => {
+        let div = document.createElement("div");
+        div.className = "msg";
+        div.innerText = m;
+        messagesDiv.appendChild(div);
+    });
+}
+
+function send() {
+    let input = document.getElementById("input");
+    if (!input.value) return;
+
+    let msgs = JSON.parse(localStorage.getItem("msgs") || "[]");
+    msgs.push(input.value);
+
+    localStorage.setItem("msgs", JSON.stringify(msgs));
+
+    input.value = "";
+    load();
+}
+
+load();
+</script>
+
 </body>
 </html>
