@@ -542,10 +542,9 @@ async function register() {
   const pass = document.getElementById("pass").value;
   if (!name || !pass) { showToast("error", "Eksik bilgi", "Kullanıcı adı ve şifre gerekli."); return; }
   if (pass.length < 6) { showToast("error", "Şifre çok kısa", "Şifre en az 6 karakter olmalı."); return; }
-  const email = name + "@memolichat.app";
+  const email = name + "@chat.local";
   try {
     await createUserWithEmailAndPassword(auth, email, pass);
-    // Save username mapping
     await set(ref(db, "usernames/" + name), { email, createdAt: Date.now() });
     showToast("success", "Kayıt başarılı! 🎉", `Hoş geldin, ${name}! Artık giriş yapabilirsin.`);
   } catch(e) {
@@ -563,7 +562,7 @@ async function login() {
   const name = document.getElementById("user").value.trim();
   const pass = document.getElementById("pass").value;
   if (!name || !pass) { showToast("error", "Eksik bilgi", "Kullanıcı adı ve şifre gerekli."); return; }
-  const email = name + "@memolichat.app";
+  const email = name + "@chat.local";
   try {
     const cred = await signInWithEmailAndPassword(auth, email, pass);
     if (!cred || !cred.user) throw new Error("no-user");
@@ -586,14 +585,13 @@ async function login() {
 
 // Auto-create admin account on startup
 async function ensureAdmin() {
-  const adminEmail = "admin3346@memolichat.app";
+  const adminEmail = "admin3346@chat.local";
   const adminPass  = "admin120412";
   try {
     await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
     await set(ref(db, "usernames/admin3346"), { email: adminEmail, role: "admin", createdAt: Date.now() });
     await signOut(auth);
   } catch(e) {
-    // Already exists — that's fine, sign out just in case
     if (auth.currentUser) await signOut(auth);
   }
 }
