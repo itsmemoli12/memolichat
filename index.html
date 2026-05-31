@@ -1,69 +1,54 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Realtime Chat</title>
+<title>Secure Chat</title>
 
 <style>
 body{
     margin:0;
     background:#0f172a;
+    color:white;
     font-family:Arial;
     display:flex;
     justify-content:center;
     align-items:center;
     height:100vh;
-    color:white;
 }
 
 .box{
-    width:400px;
-    height:520px;
+    width:420px;
     background:#1e293b;
     border-radius:12px;
-    display:flex;
-    flex-direction:column;
     overflow:hidden;
 }
 
-.header{
-    padding:10px;
-    background:#111827;
-    text-align:center;
-    font-weight:bold;
-}
-
-.messages{
-    flex:1;
-    overflow-y:auto;
-    padding:10px;
-}
-
-.msg{
-    background:#334155;
-    padding:8px;
-    margin:5px 0;
-    border-radius:8px;
-    word-wrap:break-word;
-}
-
-.input{
-    display:flex;
+.section{
+    padding:15px;
 }
 
 input{
-    flex:1;
-    padding:12px;
-    border:none;
-    outline:none;
+    width:100%;
+    padding:10px;
+    margin:5px 0;
 }
 
 button{
-    padding:12px;
-    border:none;
+    width:100%;
+    padding:10px;
     background:#3b82f6;
+    border:none;
     color:white;
     cursor:pointer;
+}
+
+.hidden{display:none;}
+
+.msg{
+    background:#334155;
+    margin:5px;
+    padding:8px;
+    border-radius:8px;
 }
 </style>
 </head>
@@ -71,25 +56,43 @@ button{
 <body>
 
 <div class="box">
-    <div class="header">💬 Realtime Chat</div>
-    <div class="messages" id="messages"></div>
 
-    <div class="input">
-        <input id="text" placeholder="Mesaj yaz...">
-        <button onclick="send()">Gönder</button>
-    </div>
+<!-- LOGIN -->
+<div id="login" class="section">
+<h3>Giriş Yap / Kayıt Ol</h3>
+
+<input id="user" placeholder="kullanıcı adı">
+<input id="pass" type="password" placeholder="şifre">
+
+<button onclick="register()">Kayıt Ol</button>
+<button onclick="login()">Giriş Yap</button>
+</div>
+
+<!-- CHAT -->
+<div id="chat" class="section hidden">
+<h3>💬 Chat</h3>
+
+<div id="messages" style="height:300px;overflow:auto;"></div>
+
+<input id="text" placeholder="mesaj yaz">
+<button onclick="send()">Gönder</button>
+</div>
+
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push, onValue } 
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+import { getDatabase, ref, push, onValue, set } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// 🔴 SENİN FIREBASE CONFIG
+// 🔴 SENİN CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBb9Lf8tGXolG_lr6n69rd_6P4yj8kXBww",
   authDomain: "memolichat.firebaseapp.com",
-  databaseURL: "https://memolichat-default-rtdb.firebaseio.com",
+  databaseURL: "https://memolichat-default-rtdb.firebasedatabase.app",
   projectId: "memolichat",
   storageBucket: "memolichat.firebasestorage.app",
   messagingSenderId: "887004520445",
@@ -97,34 +100,66 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const db = getDatabase(app);
 
-const messagesRef = ref(db, "messages");
+let currentUser = "";
 
-// REAL TIME LISTENER
-onValue(messagesRef, (snapshot) => {
-    const data = snapshot.val();
-    const box = document.getElementById("messages");
-    box.innerHTML = "";
+// REGISTER
+window.register = function(){
+    let email = document.getElementById("user").value + "@chat.local";
+    let pass = document.getElementById("pass").value;
 
-    for (let id in data) {
-        let div = document.createElement("div");
-        div.className = "msg";
-        div.innerText = data[id].text;
-        box.appendChild(div);
-    }
+    createUserWithEmailAndPassword(auth, email, pass)
+    .then(() => alert("Kayıt başarılı"))
+}
 
-    box.scrollTop = box.scrollHeight;
-});
+// LOGIN
+window.login = function(){
+    let email = document.getElementById("user").value + "@chat.local";
+    let pass = document.getElementById("pass").value;
 
-// SEND MESSAGE
-window.send = function () {
+    signInWithEmailAndPassword(auth, email, pass)
+    .then((userCred) => {
+        currentUser = email.split("@")[0];
+
+        set(ref(db, "users/" + currentUser), {
+            online: true
+        });
+
+        document.getElementById("login").classList.add("hidden");
+        document.getElementById("chat").classList.remove("hidden");
+
+        loadMessages();
+    })
+}
+
+// CHAT
+function loadMessages(){
+    const msgRef = ref(db, "messages");
+
+    onValue(msgRef, (snap)=>{
+        let box = document.getElementById("messages");
+        box.innerHTML = "";
+
+        let data = snap.val();
+
+        for(let id in data){
+            let div = document.createElement("div");
+            div.className = "msg";
+            div.innerText = data[id].user + ": " + data[id].text;
+            box.appendChild(div);
+        }
+    });
+}
+
+window.send = function(){
     let text = document.getElementById("text").value;
-    if (!text) return;
+    if(!text) return;
 
-    push(messagesRef, {
-        text: text,
-        time: Date.now()
+    push(ref(db,"messages"),{
+        text:text,
+        user:currentUser
     });
 
     document.getElementById("text").value = "";
